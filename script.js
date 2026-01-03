@@ -12,6 +12,7 @@ const importScarfBtn = document.getElementById('importScarfBtn');
 const playBtn = document.getElementById('playBtn');
 const timeDisplay = document.getElementById('timeDisplay');
 const importLastSavedBtn = document.getElementById('importLastSavedBtn');
+const saveFrameImageBtn = document.getElementById('saveFrameImageBtn');
 const toggleGridBtn = document.getElementById('toggleGridBtn');
 const saveGifBtn = document.getElementById('saveGifBtn');
 const importFile = document.getElementById('importFile');
@@ -32,7 +33,7 @@ canvas.height = CANVAS_SIZE;
 // 레이어 정의
 const layers = [
     { id: 'body', name: 'Body (얼굴, 다리)', color: '#000000', symbol: 'X', type: 'x-pattern' },
-    { id: 'scarf', name: 'Scarf (망토)', color: '#ff3c32', symbol: 'X', type: 'x-pattern' }
+    { id: 'scarf', name: 'Bauble (망토)', color: '#ff3c32', symbol: 'X', type: 'x-pattern' }
 ];
 
 // 현재 선택된 도구
@@ -184,7 +185,7 @@ function createToolUI() {
     ]);
     
     // Scarf 레이어 버튼
-    const toolScarf = createToolItem('scarf', 'Scarf', [
+    const toolScarf = createToolItem('scarf', 'Bauble', [
         { label: '1x', value: '1x' }
     ]);
     
@@ -1306,6 +1307,27 @@ importLastSavedBtn.addEventListener('click', () => {
     }
 });
 
+// 프레임 이미지로 저장
+if (saveFrameImageBtn) {
+    saveFrameImageBtn.addEventListener('click', () => {
+        try {
+            // 현재 캔버스를 이미지로 변환
+            const dataURL = canvas.toDataURL('image/png');
+            
+            // 다운로드 링크 생성
+            const link = document.createElement('a');
+            link.download = `frame-${currentFrame + 1}-${Date.now()}.png`;
+            link.href = dataURL;
+            link.click();
+            
+            console.log(`프레임 ${currentFrame + 1}이 이미지로 저장되었습니다.`);
+        } catch (error) {
+            alert('이미지 저장 중 오류가 발생했습니다: ' + error.message);
+            console.error('Save image error:', error);
+        }
+    });
+}
+
 // Body 레이어 저장
 saveBodyBtn.addEventListener('click', () => {
     // 현재 프레임 데이터 저장
@@ -1599,11 +1621,11 @@ const musicCtx = musicCanvas ? musicCanvas.getContext('2d') : null;
 let musicMotionAudio = null;
 let musicMotionFrames = [null, null, null]; // 3개의 모션 프레임 데이터
 let musicBodyColors = ['#000000', '#000000', '#000000']; // 각 모션별 Body 색상
-// 각 모션별 Scarf 컬러스킴 (4개 컬러)
+// 각 모션별 Scarf 컬러스킴 (3개 컬러)
 let musicScarfColorSchemes = [
-    ['#ff3c32', '#ff6b32', '#ff9b32', '#ffcc32'], // 모션 1
-    ['#ff3c32', '#ff6b32', '#ff9b32', '#ffcc32'], // 모션 2
-    ['#ff3c32', '#ff6b32', '#ff9b32', '#ffcc32']  // 모션 3
+    ['#E00000', '#C10000', '#9B0000'], // 모션 1
+    ['#E2D8BC', '#C10000', '#2F5E1F'], // 모션 2
+    ['#E2D8BC', '#579355', '#2F5E1F']  // 모션 3
 ];
 let musicIsPlaying = false;
 let musicAnimationFrame = null;
@@ -1617,8 +1639,9 @@ let musicAudioContext = null;
 let musicAnalyser = null;
 let musicSource = null;
 let musicFrequencyData = null;
+let musicTimeData = null; // 시간 도메인 데이터 (컬러스킴용)
 let musicSmoothedEnergy = 0; // 평활화된 에너지 레벨
-let musicScarfEnergy = 0; // scarf 라인 굵기용 평활화된 에너지
+let musicScarfEnergy = 0; // scarf 컬러 변화용 평활화된 볼륨
 let currentMusicMotion = 1; // 현재 선택된 모션 (0, 1, 2)
 let musicMotionSmoothing = 1; // 모션 스무딩 값 (0-2)
 let musicMotionChangeTime = 0; // 모션이 마지막으로 바뀐 시간
@@ -1630,12 +1653,53 @@ if (musicCanvas && musicCtx) {
     musicCanvas.height = CANVAS_SIZE;
 }
 
+// 기본 모션 파일들 로드
+async function loadDefaultMotions() {
+    const motionFiles = [
+        { index: 0, path: 'motions/motion1.json', name: 'Walking3.json' },
+        { index: 1, path: 'motions/motion2.json', name: 'Walking2.json' },
+        { index: 2, path: 'motions/motion3.json', name: 'Walking1.json' }
+    ];
+    
+    for (const motionFile of motionFiles) {
+        try {
+            const response = await fetch(motionFile.path);
+            if (!response.ok) {
+                console.warn(`모션 ${motionFile.index + 1} 파일을 불러올 수 없습니다: ${motionFile.path}`);
+                continue;
+            }
+            const data = await response.json();
+            if (data.framesData && Array.isArray(data.framesData)) {
+                musicMotionFrames[motionFile.index] = JSON.parse(JSON.stringify(data.framesData));
+                
+                // 파일 이름 표시
+                const fileNameDiv = document.querySelector(`.motion-file-name[data-motion="${motionFile.index}"]`);
+                if (fileNameDiv) {
+                    fileNameDiv.textContent = `파일: ${motionFile.name}`;
+                }
+                
+                console.log(`모션 ${motionFile.index + 1}이 로드되었습니다: ${motionFile.name}`);
+            } else {
+                console.warn(`모션 ${motionFile.index + 1} 파일 형식이 올바르지 않습니다: ${motionFile.path}`);
+            }
+        } catch (error) {
+            console.error(`모션 ${motionFile.index + 1} 파일 로드 중 오류:`, error);
+        }
+    }
+    
+    // 초기 캔버스 그리기
+    drawMusicCanvas();
+}
+
 // Music Motion 탭 초기화
 function initMusicMotionTab() {
     if (!musicCanvas) {
         console.warn('Music canvas not found');
         return;
     }
+    
+    // 기본 모션 파일들 자동 로드
+    loadDefaultMotions();
     
     // 음악 파일 업로드
     const uploadMusicMotionBtn = document.getElementById('uploadMusicMotionBtn');
@@ -1683,6 +1747,7 @@ function initMusicMotionTab() {
                 musicAnalyser.connect(musicAudioContext.destination);
                 
                 musicFrequencyData = new Uint8Array(musicAnalyser.frequencyBinCount);
+                musicTimeData = new Uint8Array(musicAnalyser.frequencyBinCount);
                 musicSmoothedEnergy = 0;
                 musicScarfEnergy = 0;
                 currentMusicMotion = 1; // 중간 모션으로 초기화
@@ -1723,54 +1788,6 @@ function initMusicMotionTab() {
             }
         });
     }
-    
-    // 모션 패턴 불러오기
-    const motionImportBtns = document.querySelectorAll('.motion-import-btn');
-    
-    motionImportBtns.forEach((btn) => {
-        // 각 버튼에 고유한 파일 입력 요소 생성
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
-        fileInput.style.display = 'none';
-        document.body.appendChild(fileInput);
-        
-        const motionIndex = parseInt(btn.dataset.motion);
-        
-        btn.addEventListener('click', () => {
-            fileInput.click();
-        });
-        
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const data = JSON.parse(event.target.result);
-                    if (data.framesData && Array.isArray(data.framesData)) {
-                        musicMotionFrames[motionIndex] = JSON.parse(JSON.stringify(data.framesData));
-                        
-                        // 파일 이름 표시
-                        const fileNameDiv = document.querySelector(`.motion-file-name[data-motion="${motionIndex}"]`);
-                        if (fileNameDiv) {
-                            fileNameDiv.textContent = `파일: ${file.name}`;
-                        }
-                        
-                        alert(`모션 ${motionIndex + 1}이 불러와졌습니다.`);
-                        drawMusicCanvas();
-                    } else {
-                        alert('올바른 패턴 파일이 아닙니다.');
-                    }
-                } catch (error) {
-                    alert('파일을 불러오는 중 오류가 발생했습니다: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
-            e.target.value = ''; // 같은 파일을 다시 선택할 수 있도록
-        });
-    });
     
     // 각 모션별 Body 색상 선택기
     const motionBodyColorPickers = document.querySelectorAll('input[type="color"][data-motion][data-type="body"]');
@@ -2093,53 +2110,33 @@ function drawMusicCanvas() {
     drawMusicGrid();
 }
 
-// 음악 분석을 기반으로 scarf 컬러 계산
+// 음악 분석을 기반으로 scarf 컬러 계산 (시간 도메인 데이터 사용)
 // 중앙 셀부터 시작해서 레이어별로 컬러스킴의 다른 컬러 적용
 function calculateScarfColor(row, col, motionIndex = 0) {
     const colorScheme = musicScarfColorSchemes[motionIndex] || musicScarfColorSchemes[0];
     
-    if (!musicAnalyser || !musicFrequencyData || !musicMotionAudio) {
+    if (!musicAnalyser || !musicTimeData || !musicMotionAudio) {
         return colorScheme[0]; // 기본값: 첫 번째 컬러
     }
     
-    // 주파수 데이터 가져오기
-    musicAnalyser.getByteFrequencyData(musicFrequencyData);
+    // 시간 도메인 데이터 가져오기 (볼륨/비트 기반, 빠른 변화)
+    musicAnalyser.getByteTimeDomainData(musicTimeData);
     
-    // 주파수 대역별 에너지 계산
-    const totalBins = musicFrequencyData.length;
-    const bassEnd = Math.floor(totalBins * 0.1);
-    const midEnd = Math.floor(totalBins * 0.5);
-    const trebleStart = Math.floor(totalBins * 0.6);
-    
-    let bassEnergy = 0;
-    let midEnergy = 0;
-    let trebleEnergy = 0;
-    
-    for (let i = 0; i < bassEnd; i++) {
-        bassEnergy += musicFrequencyData[i];
+    // RMS (Root Mean Square) 계산 - 볼륨 레벨 측정
+    let sum = 0;
+    for (let i = 0; i < musicTimeData.length; i++) {
+        const normalized = (musicTimeData[i] - 128) / 128; // -1 ~ 1 범위로 정규화
+        sum += normalized * normalized;
     }
-    for (let i = bassEnd; i < midEnd; i++) {
-        midEnergy += musicFrequencyData[i];
-    }
-    for (let i = trebleStart; i < totalBins; i++) {
-        trebleEnergy += musicFrequencyData[i];
-    }
+    const rms = Math.sqrt(sum / musicTimeData.length); // RMS 값
+    const volume = Math.min(rms * 1.5, 1); // 0-1 범위로 정규화 (민감도 조정)
     
-    // 전체 에너지
-    const totalEnergy = bassEnergy + midEnergy + trebleEnergy;
+    // 평활화된 볼륨 - 컬러 변화용 (깜박임 방지를 위해 스무딩 계수를 매우 높임)
+    musicScarfEnergy = musicScarfEnergy * 0.92 + volume * 0.08;
     
-    // 평활화된 에너지 - 컬러 변화용
-    musicScarfEnergy = musicScarfEnergy * 0.7 + totalEnergy * 0.3;
-    
-    // 트레블 비율 계산 (높을수록 경쾌하고 빠름)
-    const trebleRatio = trebleEnergy / (bassEnergy + 1);
-    
-    // 에너지 정규화 (0-1 범위)
-    const normalizedEnergy = Math.min(musicScarfEnergy / 5000, 1);
-    const normalizedTreble = Math.min(trebleRatio / 2, 1);
-    
-    // 음악 에너지에 따른 컬러 인덱스 오프셋 (0 ~ 3)
-    const colorOffset = Math.floor((normalizedEnergy * 0.6 + normalizedTreble * 0.4) * (colorScheme.length - 1));
+    // 볼륨에 따른 컬러 인덱스 오프셋 (0 ~ colorScheme.length - 1)
+    // 추가 스무딩을 위해 반올림 대신 더 부드러운 전환
+    const colorOffset = Math.floor(musicScarfEnergy * (colorScheme.length - 1));
     
     // 중앙 좌표 계산
     const centerRow = Math.floor(GRID_SIZE / 2);
@@ -2156,10 +2153,10 @@ function calculateScarfColor(row, col, motionIndex = 0) {
     // 레이어 비율 (0 = 중앙 셀, 1 = 가장 바깥 레이어)
     const layerRatio = Math.min(layerDistance / Math.max(maxLayerDistance, 1), 1);
     
-    // 레이어별 컬러 인덱스 (중앙 = 0, 바깥 = 3)
+    // 레이어별 컬러 인덱스 (중앙 = 0, 바깥 = colorScheme.length - 1)
     const layerColorIndex = Math.floor(layerRatio * (colorScheme.length - 1));
     
-    // 음악 에너지 오프셋과 레이어 인덱스를 결합하여 최종 컬러 인덱스 계산
+    // 볼륨 오프셋과 레이어 인덱스를 결합하여 최종 컬러 인덱스 계산
     const finalColorIndex = Math.min(Math.max(layerColorIndex + colorOffset, 0), colorScheme.length - 1);
     
     return colorScheme[finalColorIndex];
