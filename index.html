@@ -118,30 +118,35 @@
                             <label style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">모션 1:</label>
                             <button class="btn motion-import-btn" data-motion="0" style="width: 100%; margin-bottom: 8px;">모션 1 불러오기</button>
                             <div class="motion-file-name" data-motion="0" style="color: #999; font-size: 12px; margin-top: 4px;"></div>
+                            <div style="margin-top: 8px;">
+                                <label for="motion0BodyColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Body 색상:</label>
+                                <input type="color" id="motion0BodyColor" data-motion="0" data-type="body" value="#ff3c32" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a; margin-bottom: 8px;">
+                                <label for="motion0ScarfColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Scarf 색상:</label>
+                                <input type="color" id="motion0ScarfColor" data-motion="0" data-type="scarf" value="#ff3c32" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                            </div>
                         </div>
                         <div class="motion-input-item" style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">모션 2:</label>
                             <button class="btn motion-import-btn" data-motion="1" style="width: 100%; margin-bottom: 8px;">모션 2 불러오기</button>
                             <div class="motion-file-name" data-motion="1" style="color: #999; font-size: 12px; margin-top: 4px;"></div>
+                            <div style="margin-top: 8px;">
+                                <label for="motion1BodyColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Body 색상:</label>
+                                <input type="color" id="motion1BodyColor" data-motion="1" data-type="body" value="#ff3c32" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a; margin-bottom: 8px;">
+                                <label for="motion1ScarfColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Scarf 색상:</label>
+                                <input type="color" id="motion1ScarfColor" data-motion="1" data-type="scarf" value="#ff3c32" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                            </div>
                         </div>
                         <div class="motion-input-item" style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">모션 3:</label>
                             <button class="btn motion-import-btn" data-motion="2" style="width: 100%; margin-bottom: 8px;">모션 3 불러오기</button>
                             <div class="motion-file-name" data-motion="2" style="color: #999; font-size: 12px; margin-top: 4px;"></div>
+                            <div style="margin-top: 8px;">
+                                <label for="motion2BodyColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Body 색상:</label>
+                                <input type="color" id="motion2BodyColor" data-motion="2" data-type="body" value="#ff3c32" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a; margin-bottom: 8px;">
+                                <label for="motion2ScarfColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Scarf 색상:</label>
+                                <input type="color" id="motion2ScarfColor" data-motion="2" data-type="scarf" value="#ff3c32" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                            </div>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- 색상 변경 -->
-                <div class="control-section">
-                    <h3>색상 설정</h3>
-                    <div style="margin-bottom: 12px;">
-                        <label for="musicBodyColorPicker" style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">Body 색상:</label>
-                        <input type="color" id="musicBodyColorPicker" value="#ff3c32" style="width: 100%; height: 40px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
-                    </div>
-                    <div>
-                        <label for="musicScarfColorPicker" style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">Scarf 색상:</label>
-                        <input type="color" id="musicScarfColorPicker" value="#ff3c32" style="width: 100%; height: 40px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
                     </div>
                 </div>
                 
@@ -151,6 +156,13 @@
                     <div class="play-control">
                         <button id="musicPlayBtn" class="play-button">▶</button>
                         <span class="time-display" id="musicTimeDisplay">정지</span>
+                    </div>
+                    <div class="progress-control" style="margin-top: 12px;">
+                        <input type="range" id="musicProgressBar" min="0" max="100" value="0" step="0.1" style="width: 100%; cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: #999;">
+                            <span id="musicCurrentTime">0:00</span>
+                            <span id="musicTotalTime">0:00</span>
+                        </div>
                     </div>
                 </div>
                 

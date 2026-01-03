@@ -788,109 +788,131 @@ saveBtn.addEventListener('click', () => {
     }
 });
 
-importBtn.addEventListener('click', () => {
-    importFile.click();
-});
+if (importBtn) {
+    importBtn.addEventListener('click', () => {
+        if (!importFile) {
+            console.error('importFile element not found');
+            alert('파일 입력 요소를 찾을 수 없습니다.');
+            return;
+        }
+        importFile.click();
+    });
+} else {
+    console.error('importBtn element not found');
+}
 
-importFile.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const data = JSON.parse(event.target.result);
-            
-            // 프레임 데이터 불러오기 (버전 2.0)
-            if (data.framesData && Array.isArray(data.framesData)) {
-                // 모든 프레임 데이터 초기화
-                for (let frame = 0; frame < TOTAL_FRAMES; frame++) {
-                    for (let row = 0; row < GRID_SIZE; row++) {
-                        for (let col = 0; col < GRID_SIZE; col++) {
-                            framesData[frame][row][col] = {};
+if (importFile) {
+    importFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        console.log('Import file selected:', file.name);
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                console.log('Import data loaded:', data);
+                
+                // 프레임 데이터 불러오기 (버전 2.0)
+                if (data.framesData && Array.isArray(data.framesData)) {
+                    // 모든 프레임 데이터 초기화
+                    for (let frame = 0; frame < TOTAL_FRAMES; frame++) {
+                        for (let row = 0; row < GRID_SIZE; row++) {
+                            for (let col = 0; col < GRID_SIZE; col++) {
+                                framesData[frame][row][col] = {};
+                            }
                         }
                     }
-                }
-                
-                // 저장된 데이터 복원
-                for (let frame = 0; frame < Math.min(TOTAL_FRAMES, data.framesData.length); frame++) {
-                    if (data.framesData[frame] && Array.isArray(data.framesData[frame])) {
-                        for (let row = 0; row < Math.min(GRID_SIZE, data.framesData[frame].length); row++) {
-                            if (data.framesData[frame][row] && Array.isArray(data.framesData[frame][row])) {
-                                for (let col = 0; col < Math.min(GRID_SIZE, data.framesData[frame][row].length); col++) {
-                                    if (data.framesData[frame][row][col] && typeof data.framesData[frame][row][col] === 'object') {
-                                        // 깊은 복사로 데이터 복원
-                                        framesData[frame][row][col] = JSON.parse(JSON.stringify(data.framesData[frame][row][col]));
+                    
+                    // 저장된 데이터 복원
+                    for (let frame = 0; frame < Math.min(TOTAL_FRAMES, data.framesData.length); frame++) {
+                        if (data.framesData[frame] && Array.isArray(data.framesData[frame])) {
+                            for (let row = 0; row < Math.min(GRID_SIZE, data.framesData[frame].length); row++) {
+                                if (data.framesData[frame][row] && Array.isArray(data.framesData[frame][row])) {
+                                    for (let col = 0; col < Math.min(GRID_SIZE, data.framesData[frame][row].length); col++) {
+                                        if (data.framesData[frame][row][col] && typeof data.framesData[frame][row][col] === 'object') {
+                                            // 깊은 복사로 데이터 복원
+                                            framesData[frame][row][col] = JSON.parse(JSON.stringify(data.framesData[frame][row][col]));
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    gridData = framesData[currentFrame];
                 }
-                gridData = framesData[currentFrame];
-            }
-            // 이전 버전 호환성 (단일 프레임)
-            else if (data.gridData && Array.isArray(data.gridData)) {
-                // 모든 프레임 데이터 초기화
-                for (let frame = 0; frame < TOTAL_FRAMES; frame++) {
-                    for (let row = 0; row < GRID_SIZE; row++) {
-                        for (let col = 0; col < GRID_SIZE; col++) {
-                            framesData[frame][row][col] = {};
-                        }
-                    }
-                }
-                
-                // 첫 번째 프레임에만 데이터 복원
-                for (let row = 0; row < Math.min(GRID_SIZE, data.gridData.length); row++) {
-                    if (data.gridData[row] && Array.isArray(data.gridData[row])) {
-                        for (let col = 0; col < Math.min(GRID_SIZE, data.gridData[row].length); col++) {
-                            if (data.gridData[row][col] && typeof data.gridData[row][col] === 'object') {
-                                // 깊은 복사로 데이터 복원
-                                framesData[0][row][col] = JSON.parse(JSON.stringify(data.gridData[row][col]));
+                // 이전 버전 호환성 (단일 프레임)
+                else if (data.gridData && Array.isArray(data.gridData)) {
+                    // 모든 프레임 데이터 초기화
+                    for (let frame = 0; frame < TOTAL_FRAMES; frame++) {
+                        for (let row = 0; row < GRID_SIZE; row++) {
+                            for (let col = 0; col < GRID_SIZE; col++) {
+                                framesData[frame][row][col] = {};
                             }
                         }
                     }
-                }
-                gridData = framesData[currentFrame];
-            }
-            
-            // 레이어 색상 불러오기
-            if (data.layers && Array.isArray(data.layers)) {
-                data.layers.forEach(importedLayer => {
-                    const layer = layers.find(l => l.id === importedLayer.id);
-                    if (layer && importedLayer.color) {
-                        layer.color = importedLayer.color;
+                    
+                    // 첫 번째 프레임에만 데이터 복원
+                    for (let row = 0; row < Math.min(GRID_SIZE, data.gridData.length); row++) {
+                        if (data.gridData[row] && Array.isArray(data.gridData[row])) {
+                            for (let col = 0; col < Math.min(GRID_SIZE, data.gridData[row].length); col++) {
+                                if (data.gridData[row][col] && typeof data.gridData[row][col] === 'object') {
+                                    // 깊은 복사로 데이터 복원
+                                    framesData[0][row][col] = JSON.parse(JSON.stringify(data.gridData[row][col]));
+                                }
+                            }
+                        }
                     }
-                });
+                    gridData = framesData[currentFrame];
+                } else {
+                    alert('올바른 패턴 파일이 아닙니다. framesData 또는 gridData가 필요합니다.');
+                    e.target.value = '';
+                    return;
+                }
+                
+                // 레이어 색상 불러오기
+                if (data.layers && Array.isArray(data.layers)) {
+                    data.layers.forEach(importedLayer => {
+                        const layer = layers.find(l => l.id === importedLayer.id);
+                        if (layer && importedLayer.color) {
+                            layer.color = importedLayer.color;
+                        }
+                    });
+                }
+                
+                // 레이어 활성화 상태 불러오기
+                if (data.layerActive && typeof data.layerActive === 'object') {
+                    Object.assign(layerActive, data.layerActive);
+                }
+                
+                // UI 업데이트
+                createLayerUI();
+                updateFrameUI();
+                updateAllThumbnails();
+                drawCanvas();
+                
+                alert('패턴이 성공적으로 불러와졌습니다.');
+                console.log('Pattern imported successfully');
+            } catch (error) {
+                alert('파일을 불러오는 중 오류가 발생했습니다.\n' + error.message);
+                console.error('Import error:', error);
             }
-            
-            // 레이어 활성화 상태 불러오기
-            if (data.layerActive && typeof data.layerActive === 'object') {
-                Object.assign(layerActive, data.layerActive);
-            }
-            
-            // UI 업데이트
-            createLayerUI();
-            drawCanvas();
-            updateFrameUI();
-            
-            alert('패턴이 성공적으로 불러와졌습니다.');
-            console.log('Pattern imported successfully');
-        } catch (error) {
-            alert('파일을 불러오는 중 오류가 발생했습니다.\n' + error.message);
-            console.error('Import error:', error);
-        }
-    };
-    
-    reader.onerror = () => {
-        alert('파일을 읽는 중 오류가 발생했습니다.');
-    };
-    
-    reader.readAsText(file);
-    
-    // 파일 입력 초기화 (같은 파일을 다시 선택할 수 있도록)
-    importFile.value = '';
-});
+        };
+        
+        reader.onerror = () => {
+            alert('파일을 읽는 중 오류가 발생했습니다.');
+            console.error('FileReader error');
+        };
+        
+        reader.readAsText(file);
+        
+        // 파일 입력 초기화 (같은 파일을 다시 선택할 수 있도록)
+        e.target.value = '';
+    });
+} else {
+    console.error('importFile element not found');
+}
 
 recordBtn.addEventListener('click', () => {
     alert('화면 녹화 기능은 구현 예정입니다.');
@@ -1576,8 +1598,8 @@ const musicCanvas = document.getElementById('musicCanvas');
 const musicCtx = musicCanvas ? musicCanvas.getContext('2d') : null;
 let musicMotionAudio = null;
 let musicMotionFrames = [null, null, null]; // 3개의 모션 프레임 데이터
-let musicBodyColor = '#ff3c32';
-let musicScarfColor = '#ff3c32';
+let musicBodyColors = ['#ff3c32', '#ff3c32', '#ff3c32']; // 각 모션별 Body 색상
+let musicScarfColors = ['#ff3c32', '#ff3c32', '#ff3c32']; // 각 모션별 Scarf 색상
 let musicIsPlaying = false;
 let musicAnimationFrame = null;
 let musicShowGrid = true; // Music Motion 탭의 그리드 표시 여부
@@ -1591,6 +1613,11 @@ let musicAnalyser = null;
 let musicSource = null;
 let musicFrequencyData = null;
 let musicSmoothedEnergy = 0; // 평활화된 에너지 레벨
+let currentMusicMotion = 1; // 현재 선택된 모션 (0, 1, 2)
+let musicMotionSmoothing = 1; // 모션 스무딩 값 (0-2)
+let musicMotionChangeTime = 0; // 모션이 마지막으로 바뀐 시간
+const MIN_MOTION_DURATION = 0.5; // 모션 최소 지속 시간 (초)
+let isDraggingProgressBar = false; // 재생바 드래그 중 여부
 
 if (musicCanvas && musicCtx) {
     musicCanvas.width = CANVAS_SIZE;
@@ -1651,6 +1678,36 @@ function initMusicMotionTab() {
                 
                 musicFrequencyData = new Uint8Array(musicAnalyser.frequencyBinCount);
                 musicSmoothedEnergy = 0;
+                currentMusicMotion = 1; // 중간 모션으로 초기화
+                musicMotionSmoothing = 1;
+                musicMotionChangeTime = 0;
+                
+                // 재생바 및 시간 표시 초기화
+                const progressBar = document.getElementById('musicProgressBar');
+                const currentTimeEl = document.getElementById('musicCurrentTime');
+                const totalTimeEl = document.getElementById('musicTotalTime');
+                if (progressBar) {
+                    progressBar.value = 0;
+                    progressBar.max = 100;
+                }
+                if (currentTimeEl) {
+                    currentTimeEl.textContent = '0:00';
+                }
+                if (totalTimeEl) {
+                    totalTimeEl.textContent = '0:00';
+                }
+                
+                // 음악 로드 완료 시 총 재생 시간 표시
+                musicMotionAudio.addEventListener('loadedmetadata', () => {
+                    if (totalTimeEl && musicMotionAudio.duration) {
+                        const totalMinutes = Math.floor(musicMotionAudio.duration / 60);
+                        const totalSeconds = Math.floor(musicMotionAudio.duration % 60);
+                        totalTimeEl.textContent = `${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+                        if (progressBar) {
+                            progressBar.max = musicMotionAudio.duration;
+                        }
+                    }
+                });
                 
                 const infoDiv = document.getElementById('musicMotionInfo');
                 if (infoDiv) {
@@ -1708,23 +1765,23 @@ function initMusicMotionTab() {
         });
     });
     
-    // 색상 선택기
-    const musicBodyColorPicker = document.getElementById('musicBodyColorPicker');
-    const musicScarfColorPicker = document.getElementById('musicScarfColorPicker');
-    
-    if (musicBodyColorPicker) {
-        musicBodyColorPicker.addEventListener('change', (e) => {
-            musicBodyColor = e.target.value;
+    // 각 모션별 색상 선택기
+    const motionColorPickers = document.querySelectorAll('input[type="color"][data-motion]');
+    motionColorPickers.forEach(picker => {
+        picker.addEventListener('change', (e) => {
+            const motionIndex = parseInt(e.target.dataset.motion);
+            const colorType = e.target.dataset.type; // 'body' or 'scarf'
+            const color = e.target.value;
+            
+            if (colorType === 'body') {
+                musicBodyColors[motionIndex] = color;
+            } else if (colorType === 'scarf') {
+                musicScarfColors[motionIndex] = color;
+            }
+            
             drawMusicCanvas();
         });
-    }
-    
-    if (musicScarfColorPicker) {
-        musicScarfColorPicker.addEventListener('change', (e) => {
-            musicScarfColor = e.target.value;
-            drawMusicCanvas();
-        });
-    }
+    });
     
     // 재생 버튼
     const musicPlayBtn = document.getElementById('musicPlayBtn');
@@ -1751,12 +1808,62 @@ function initMusicMotionTab() {
                 musicMotionAudio.play().then(() => {
                     musicIsPlaying = true;
                     musicPlayBtn.textContent = '⏸';
+                    musicMotionChangeTime = musicMotionAudio.currentTime; // 재생 시작 시간으로 초기화
                     startMusicAnimation();
                 }).catch(error => {
                     console.error('재생 오류:', error);
                     alert('음악 재생 중 오류가 발생했습니다.');
                 });
             }
+        });
+    }
+    
+    // 재생바 이벤트 리스너
+    const musicProgressBar = document.getElementById('musicProgressBar');
+    
+    if (musicProgressBar) {
+        // 재생바 드래그 시작
+        musicProgressBar.addEventListener('mousedown', () => {
+            isDraggingProgressBar = true;
+        });
+        
+        // 재생바 드래그 중 - 시간 표시만 업데이트
+        musicProgressBar.addEventListener('input', () => {
+            if (musicMotionAudio && !isNaN(musicMotionAudio.duration)) {
+                const seekTime = parseFloat(musicProgressBar.value);
+                
+                // 현재 시간 표시 업데이트
+                const currentTimeEl = document.getElementById('musicCurrentTime');
+                if (currentTimeEl) {
+                    const minutes = Math.floor(seekTime / 60);
+                    const seconds = Math.floor(seekTime % 60);
+                    currentTimeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }
+        });
+        
+        // 재생바 드래그 종료 - 실제 재생 위치 변경
+        musicProgressBar.addEventListener('mouseup', () => {
+            if (musicMotionAudio && !isNaN(musicMotionAudio.duration)) {
+                const seekTime = parseFloat(musicProgressBar.value);
+                musicMotionAudio.currentTime = seekTime;
+                musicMotionChangeTime = seekTime; // 모션 변경 시간도 업데이트
+            }
+            isDraggingProgressBar = false;
+        });
+        
+        // 터치 이벤트 지원
+        musicProgressBar.addEventListener('touchstart', () => {
+            isDraggingProgressBar = true;
+        });
+        
+        musicProgressBar.addEventListener('touchend', () => {
+            if (musicMotionAudio && !isNaN(musicMotionAudio.duration)) {
+                const seekTime = parseFloat(musicProgressBar.value);
+                musicMotionAudio.currentTime = seekTime;
+                musicMotionChangeTime = seekTime;
+            }
+            isDraggingProgressBar = false;
         });
     }
     
@@ -1861,8 +1968,8 @@ function initMusicMotionTab() {
 
 // 음악 분석하여 모션 선택 (0: 느림, 1: 중간, 2: 빠름)
 function analyzeMusicMotion() {
-    if (!musicAnalyser || !musicFrequencyData) {
-        return 1; // 기본값: 중간
+    if (!musicAnalyser || !musicFrequencyData || !musicMotionAudio) {
+        return currentMusicMotion; // 기본값: 현재 모션 유지
     }
     
     // 주파수 데이터 가져오기
@@ -1892,7 +1999,7 @@ function analyzeMusicMotion() {
     const totalEnergy = bassEnergy + midEnergy + trebleEnergy;
     
     // 평활화 (부드러운 전환을 위해)
-    musicSmoothedEnergy = musicSmoothedEnergy * 0.7 + totalEnergy * 0.3;
+    musicSmoothedEnergy = musicSmoothedEnergy * 0.85 + totalEnergy * 0.15; // 더 부드럽게
     
     // 트레블/베이스 비율 (높을수록 경쾌하고 빠름)
     const trebleRatio = trebleEnergy / (bassEnergy + 1); // +1로 0으로 나누는 것 방지
@@ -1908,13 +2015,35 @@ function analyzeMusicMotion() {
     // 가중 평균으로 모션 결정 (0-2)
     const motionScore = normalizedEnergy * 0.6 + normalizedTreble * 0.4;
     
+    // 새 모션 계산
+    let newMotion;
     if (motionScore < 0.33) {
-        return 0; // 모션 1 (느림)
+        newMotion = 0; // 모션 1 (느림)
     } else if (motionScore < 0.66) {
-        return 1; // 모션 2 (중간)
+        newMotion = 1; // 모션 2 (중간)
     } else {
-        return 2; // 모션 3 (빠름)
+        newMotion = 2; // 모션 3 (빠름)
     }
+    
+    // 모션 스무딩 적용 (현재 모션과 새 모션의 가중 평균)
+    musicMotionSmoothing = musicMotionSmoothing * 0.92 + newMotion * 0.08;
+    
+    // 최소 지속 시간 체크
+    const currentTime = musicMotionAudio.currentTime;
+    const timeSinceChange = currentTime - musicMotionChangeTime;
+    
+    // 모션이 바뀌려면 최소 지속 시간이 지나야 하고, 스무딩 값이 충분히 차이 나야 함
+    const smoothedMotion = Math.round(musicMotionSmoothing);
+    if (smoothedMotion !== currentMusicMotion && timeSinceChange >= MIN_MOTION_DURATION) {
+        // 히스테리시스 적용: 현재 모션과 차이가 충분히 클 때만 변경
+        const motionDiff = Math.abs(smoothedMotion - currentMusicMotion);
+        if (motionDiff >= 1) { // 최소 1단계 차이 필요
+            currentMusicMotion = smoothedMotion;
+            musicMotionChangeTime = currentTime;
+        }
+    }
+    
+    return currentMusicMotion;
 }
 
 // Music Canvas 그리기
@@ -1935,12 +2064,12 @@ function drawMusicCanvas() {
         const frameIndex = Math.min(Math.floor(timeProgress * 6), 5); // 각 모션은 6프레임
         
         if (musicMotionFrames[motionIndex] && musicMotionFrames[motionIndex][frameIndex]) {
-            drawMusicFrame(musicMotionFrames[motionIndex][frameIndex]);
+            drawMusicFrame(musicMotionFrames[motionIndex][frameIndex], motionIndex);
         }
     } else {
         // 정지 상태: 첫 번째 모션의 첫 번째 프레임 표시
         if (musicMotionFrames[0] && musicMotionFrames[0][0]) {
-            drawMusicFrame(musicMotionFrames[0][0]);
+            drawMusicFrame(musicMotionFrames[0][0], 0);
         }
     }
     
@@ -1949,18 +2078,21 @@ function drawMusicCanvas() {
 }
 
 // Music Frame 그리기
-function drawMusicFrame(frameData) {
+function drawMusicFrame(frameData, motionIndex = 0) {
     if (!musicCtx || !frameData) return;
+    
+    const bodyColor = musicBodyColors[motionIndex] || '#ff3c32';
+    const scarfColor = musicScarfColors[motionIndex] || '#ff3c32';
     
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
             const cellData = frameData[row][col];
             if (cellData) {
                 if (cellData.body) {
-                    drawMusicX(row, col, musicBodyColor);
+                    drawMusicX(row, col, bodyColor);
                 }
                 if (cellData.scarf) {
-                    drawMusicX(row, col, musicScarfColor);
+                    drawMusicX(row, col, scarfColor);
                 }
             }
         }
@@ -2016,12 +2148,29 @@ function startMusicAnimation() {
     
     drawMusicCanvas();
     
-    const musicTimeDisplay = document.getElementById('musicTimeDisplay');
-    if (musicTimeDisplay && musicMotionAudio) {
-        const currentTime = Math.floor(musicMotionAudio.currentTime);
-        const minutes = Math.floor(currentTime / 60);
-        const seconds = currentTime % 60;
-        musicTimeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    if (musicMotionAudio) {
+        const currentTime = musicMotionAudio.currentTime;
+        const duration = musicMotionAudio.duration;
+        
+        // 시간 표시 업데이트
+        const musicTimeDisplay = document.getElementById('musicTimeDisplay');
+        if (musicTimeDisplay) {
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+            musicTimeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // 재생바 업데이트 (드래그 중이 아닐 때만)
+        const musicProgressBar = document.getElementById('musicProgressBar');
+        const currentTimeEl = document.getElementById('musicCurrentTime');
+        if (musicProgressBar && !isDraggingProgressBar && !isNaN(duration) && duration > 0) {
+            musicProgressBar.value = currentTime;
+        }
+        if (currentTimeEl && !isDraggingProgressBar) {
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+            currentTimeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
     }
     
     musicAnimationFrame = requestAnimationFrame(startMusicAnimation);
