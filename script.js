@@ -31,7 +31,7 @@ canvas.height = CANVAS_SIZE;
 
 // 레이어 정의
 const layers = [
-    { id: 'body', name: 'Body (얼굴, 다리)', color: '#ff3c32', symbol: 'X', type: 'x-pattern' },
+    { id: 'body', name: 'Body (얼굴, 다리)', color: '#000000', symbol: 'X', type: 'x-pattern' },
     { id: 'scarf', name: 'Scarf (망토)', color: '#ff3c32', symbol: 'X', type: 'x-pattern' }
 ];
 
@@ -216,7 +216,7 @@ function createToolItem(toolId, label, sizeOptions, hasInput = false, inputValue
         colorPicker.type = 'color';
         colorPicker.id = toolId + 'ColorPicker';
         const layer = layers.find(l => l.id === toolId);
-        colorPicker.value = layer ? layer.color : '#ff3c32';
+        colorPicker.value = layer ? layer.color : (toolId === 'body' ? '#000000' : '#ff3c32');
         colorPicker.style.width = '100%';
         colorPicker.style.height = '32px';
         colorPicker.style.border = '1px solid #555';
@@ -1598,8 +1598,13 @@ const musicCanvas = document.getElementById('musicCanvas');
 const musicCtx = musicCanvas ? musicCanvas.getContext('2d') : null;
 let musicMotionAudio = null;
 let musicMotionFrames = [null, null, null]; // 3개의 모션 프레임 데이터
-let musicBodyColors = ['#ff3c32', '#ff3c32', '#ff3c32']; // 각 모션별 Body 색상
-let musicScarfColors = ['#ff3c32', '#ff3c32', '#ff3c32']; // 각 모션별 Scarf 색상
+let musicBodyColors = ['#000000', '#000000', '#000000']; // 각 모션별 Body 색상
+// 각 모션별 Scarf 컬러스킴 (4개 컬러)
+let musicScarfColorSchemes = [
+    ['#ff3c32', '#ff6b32', '#ff9b32', '#ffcc32'], // 모션 1
+    ['#ff3c32', '#ff6b32', '#ff9b32', '#ffcc32'], // 모션 2
+    ['#ff3c32', '#ff6b32', '#ff9b32', '#ffcc32']  // 모션 3
+];
 let musicIsPlaying = false;
 let musicAnimationFrame = null;
 let musicShowGrid = true; // Music Motion 탭의 그리드 표시 여부
@@ -1613,6 +1618,7 @@ let musicAnalyser = null;
 let musicSource = null;
 let musicFrequencyData = null;
 let musicSmoothedEnergy = 0; // 평활화된 에너지 레벨
+let musicScarfEnergy = 0; // scarf 라인 굵기용 평활화된 에너지
 let currentMusicMotion = 1; // 현재 선택된 모션 (0, 1, 2)
 let musicMotionSmoothing = 1; // 모션 스무딩 값 (0-2)
 let musicMotionChangeTime = 0; // 모션이 마지막으로 바뀐 시간
@@ -1678,6 +1684,7 @@ function initMusicMotionTab() {
                 
                 musicFrequencyData = new Uint8Array(musicAnalyser.frequencyBinCount);
                 musicSmoothedEnergy = 0;
+                musicScarfEnergy = 0;
                 currentMusicMotion = 1; // 중간 모션으로 초기화
                 musicMotionSmoothing = 1;
                 musicMotionChangeTime = 0;
@@ -1765,22 +1772,31 @@ function initMusicMotionTab() {
         });
     });
     
-    // 각 모션별 색상 선택기
-    const motionColorPickers = document.querySelectorAll('input[type="color"][data-motion]');
-    motionColorPickers.forEach(picker => {
+    // 각 모션별 Body 색상 선택기
+    const motionBodyColorPickers = document.querySelectorAll('input[type="color"][data-motion][data-type="body"]');
+    motionBodyColorPickers.forEach(picker => {
         picker.addEventListener('change', (e) => {
             const motionIndex = parseInt(e.target.dataset.motion);
-            const colorType = e.target.dataset.type; // 'body' or 'scarf'
             const color = e.target.value;
-            
-            if (colorType === 'body') {
-                musicBodyColors[motionIndex] = color;
-            } else if (colorType === 'scarf') {
-                musicScarfColors[motionIndex] = color;
-            }
-            
+            musicBodyColors[motionIndex] = color;
             drawMusicCanvas();
         });
+    });
+    
+    // 각 모션별 Scarf 컬러스킴 선택기
+    const scarfColorSchemePickers = document.querySelectorAll('input[data-color-index]');
+    scarfColorSchemePickers.forEach((picker) => {
+        const motionIndex = parseInt(picker.dataset.motion);
+        const colorIndex = parseInt(picker.dataset.colorIndex);
+        
+        if (motionIndex >= 0 && motionIndex < musicScarfColorSchemes.length && 
+            colorIndex >= 0 && colorIndex < musicScarfColorSchemes[motionIndex].length) {
+            picker.value = musicScarfColorSchemes[motionIndex][colorIndex];
+            picker.addEventListener('change', (e) => {
+                musicScarfColorSchemes[motionIndex][colorIndex] = e.target.value;
+                drawMusicCanvas();
+            });
+        }
     });
     
     // 재생 버튼
@@ -2077,22 +2093,95 @@ function drawMusicCanvas() {
     drawMusicGrid();
 }
 
+// 음악 분석을 기반으로 scarf 컬러 계산
+// 중앙 셀부터 시작해서 레이어별로 컬러스킴의 다른 컬러 적용
+function calculateScarfColor(row, col, motionIndex = 0) {
+    const colorScheme = musicScarfColorSchemes[motionIndex] || musicScarfColorSchemes[0];
+    
+    if (!musicAnalyser || !musicFrequencyData || !musicMotionAudio) {
+        return colorScheme[0]; // 기본값: 첫 번째 컬러
+    }
+    
+    // 주파수 데이터 가져오기
+    musicAnalyser.getByteFrequencyData(musicFrequencyData);
+    
+    // 주파수 대역별 에너지 계산
+    const totalBins = musicFrequencyData.length;
+    const bassEnd = Math.floor(totalBins * 0.1);
+    const midEnd = Math.floor(totalBins * 0.5);
+    const trebleStart = Math.floor(totalBins * 0.6);
+    
+    let bassEnergy = 0;
+    let midEnergy = 0;
+    let trebleEnergy = 0;
+    
+    for (let i = 0; i < bassEnd; i++) {
+        bassEnergy += musicFrequencyData[i];
+    }
+    for (let i = bassEnd; i < midEnd; i++) {
+        midEnergy += musicFrequencyData[i];
+    }
+    for (let i = trebleStart; i < totalBins; i++) {
+        trebleEnergy += musicFrequencyData[i];
+    }
+    
+    // 전체 에너지
+    const totalEnergy = bassEnergy + midEnergy + trebleEnergy;
+    
+    // 평활화된 에너지 - 컬러 변화용
+    musicScarfEnergy = musicScarfEnergy * 0.7 + totalEnergy * 0.3;
+    
+    // 트레블 비율 계산 (높을수록 경쾌하고 빠름)
+    const trebleRatio = trebleEnergy / (bassEnergy + 1);
+    
+    // 에너지 정규화 (0-1 범위)
+    const normalizedEnergy = Math.min(musicScarfEnergy / 5000, 1);
+    const normalizedTreble = Math.min(trebleRatio / 2, 1);
+    
+    // 음악 에너지에 따른 컬러 인덱스 오프셋 (0 ~ 3)
+    const colorOffset = Math.floor((normalizedEnergy * 0.6 + normalizedTreble * 0.4) * (colorScheme.length - 1));
+    
+    // 중앙 좌표 계산
+    const centerRow = Math.floor(GRID_SIZE / 2);
+    const centerCol = Math.floor(GRID_SIZE / 2);
+    
+    // 중앙에서의 맨하탄 거리 계산 (레이어 구분을 위해)
+    const deltaRow = Math.abs(row - centerRow);
+    const deltaCol = Math.abs(col - centerCol);
+    const layerDistance = Math.max(deltaRow, deltaCol); // 레이어 번호 (0 = 중앙, 1 = 첫 번째 레이어, ...)
+    
+    // 최대 레이어 거리
+    const maxLayerDistance = Math.max(centerRow, centerCol);
+    
+    // 레이어 비율 (0 = 중앙 셀, 1 = 가장 바깥 레이어)
+    const layerRatio = Math.min(layerDistance / Math.max(maxLayerDistance, 1), 1);
+    
+    // 레이어별 컬러 인덱스 (중앙 = 0, 바깥 = 3)
+    const layerColorIndex = Math.floor(layerRatio * (colorScheme.length - 1));
+    
+    // 음악 에너지 오프셋과 레이어 인덱스를 결합하여 최종 컬러 인덱스 계산
+    const finalColorIndex = Math.min(Math.max(layerColorIndex + colorOffset, 0), colorScheme.length - 1);
+    
+    return colorScheme[finalColorIndex];
+}
+
 // Music Frame 그리기
 function drawMusicFrame(frameData, motionIndex = 0) {
     if (!musicCtx || !frameData) return;
     
-    const bodyColor = musicBodyColors[motionIndex] || '#ff3c32';
-    const scarfColor = musicScarfColors[motionIndex] || '#ff3c32';
+    const bodyColor = musicBodyColors[motionIndex] || '#000000';
     
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
             const cellData = frameData[row][col];
             if (cellData) {
                 if (cellData.body) {
-                    drawMusicX(row, col, bodyColor);
+                    drawMusicX(row, col, bodyColor, 2.4); // body는 고정 굵기, 고정 컬러
                 }
                 if (cellData.scarf) {
-                    drawMusicX(row, col, scarfColor);
+                    // 각 셀마다 중앙에서의 거리와 음악 에너지에 따라 다른 컬러 계산
+                    const scarfColor = calculateScarfColor(row, col, motionIndex);
+                    drawMusicX(row, col, scarfColor, 2.4); // scarf는 동적 컬러 (중앙에서 퍼지는 효과)
                 }
             }
         }
@@ -2100,7 +2189,7 @@ function drawMusicFrame(frameData, motionIndex = 0) {
 }
 
 // Music X 패턴 그리기
-function drawMusicX(row, col, color) {
+function drawMusicX(row, col, color, lineWidth = 2.4) {
     if (!musicCtx) return;
     
     const x = col * CELL_SIZE;
@@ -2108,7 +2197,7 @@ function drawMusicX(row, col, color) {
     const margin = 1.5;
     
     musicCtx.strokeStyle = color;
-    musicCtx.lineWidth = 2.4;
+    musicCtx.lineWidth = lineWidth;
     musicCtx.lineCap = 'round';
     
     musicCtx.beginPath();
