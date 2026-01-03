@@ -225,13 +225,21 @@ function createToolItem(toolId, label, sizeOptions, hasInput = false, inputValue
         colorPicker.style.cursor = 'pointer';
         colorPicker.style.backgroundColor = '#3a3a3a';
         
-        colorPicker.addEventListener('change', (e) => {
+        const updateLayerColor = (colorValue) => {
             const targetLayer = layers.find(l => l.id === toolId);
             if (targetLayer) {
-                targetLayer.color = e.target.value;
+                targetLayer.color = colorValue;
                 drawCanvas();
                 updateAllThumbnails();
             }
+        };
+        
+        colorPicker.addEventListener('change', (e) => {
+            updateLayerColor(e.target.value);
+        });
+        
+        colorPicker.addEventListener('input', (e) => {
+            updateLayerColor(e.target.value);
         });
         
         // 클릭 이벤트가 도구 선택으로 전파되지 않도록
@@ -340,6 +348,17 @@ function updateToolSelection() {
             .find(btn => btn.textContent === currentToolSize);
         if (activeSizeBtn) {
             activeSizeBtn.classList.add('active');
+        }
+        
+        // Body 또는 Scarf 도구인 경우 색상 피커 값 동기화
+        if (currentTool === 'body' || currentTool === 'scarf') {
+            const colorPicker = document.getElementById(currentTool + 'ColorPicker');
+            if (colorPicker) {
+                const layer = layers.find(l => l.id === currentTool);
+                if (layer) {
+                    colorPicker.value = layer.color;
+                }
+            }
         }
     }
 }
