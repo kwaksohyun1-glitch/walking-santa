@@ -1644,7 +1644,7 @@ let musicBodyColors = ['#000000', '#000000', '#000000']; // 각 모션별 Body �
 let musicScarfColorSchemes = [
     ['#E2D8BC', '#579355', '#2F5E1F'], // 모션 1 (원래 모션 3)
     ['#E2D8BC', '#C10000', '#2F5E1F'], // 모션 2
-    ['#E00000', '#C10000', '#9B0000']  // 모션 3 (원래 모션 1)
+    ['#E2D8B8', '#E17A7A', '#9B0000']  // 모션 3
 ];
 let musicIsPlaying = false;
 let musicAnimationFrame = null;
@@ -1667,6 +1667,7 @@ let musicScarfEnergy = 0; // scarf 컬러 변화용 평활화된 볼륨
 let currentMusicMotion = 1; // 현재 선택된 모션 (0, 1, 2)
 let musicMotionSmoothing = 1; // 모션 스무딩 값 (0-2)
 let musicMotionChangeTime = 0; // 모션이 마지막으로 바뀐 시간
+let motionChangeLog = []; // 모션 변경 기록 (30초 내 모든 모션 확인용)
 const MIN_MOTION_DURATION = 0.5; // 모션 최소 지속 시간 (초)
 let currentMotionFrameIndex = 0; // 현재 모션의 프레임 인덱스 (0-5)
 let motionFrameStartTime = 0; // 현재 모션 프레임 사이클 시작 시간
@@ -2112,6 +2113,43 @@ function analyzeMusicMotion(allowMotionChange = false) {
     if (smoothedMotion !== currentMusicMotion) {
         // 모션 변경 - 더 쉽게 변경되도록 임계값 제거
         const currentTime = musicMotionAudio.currentTime;
+        
+        // 모션 변경 기록
+        motionChangeLog.push({
+            time: currentTime,
+            motion: smoothedMotion,
+            motionScore: motionScore,
+            energy: normalizedEnergy,
+            treble: normalizedTreble
+        });
+        
+        // 오래된 로그 제거 (1분 이상 오래된 것)
+        const oneMinuteAgo = currentTime - 60;
+        motionChangeLog = motionChangeLog.filter(log => log.time >= oneMinuteAgo);
+        
+        // 최근 30초 내 모션 변경 기록 확인
+        const thirtySecondsAgo = currentTime - 30;
+        const recentChanges = motionChangeLog.filter(log => log.time >= thirtySecondsAgo);
+        const uniqueMotions = new Set(recentChanges.map(log => log.motion));
+        
+        if (uniqueMotions.size === 3) {
+            const startTime = recentChanges[0].time;
+            const endTime = currentTime;
+            const startMinutes = Math.floor(startTime / 60);
+            const startSeconds = Math.floor(startTime % 60);
+            const endMinutes = Math.floor(endTime / 60);
+            const endSeconds = Math.floor(endTime % 60);
+            const motionNames = ['모션 1', '모션 2', '모션 3'];
+            
+            console.log(`✅ 30초 내 모든 모션 등장: ${startMinutes}:${startSeconds.toString().padStart(2, '0')} ~ ${endMinutes}:${endSeconds.toString().padStart(2, '0')} (현재: ${motionNames[smoothedMotion]})`);
+        }
+        
+        // 모션 변경 로그 출력
+        const minutes = Math.floor(currentTime / 60);
+        const seconds = Math.floor(currentTime % 60);
+        const motionNames = ['모션 1', '모션 2', '모션 3'];
+        console.log(`🔄 ${motionNames[smoothedMotion]} 선택: ${minutes}:${seconds.toString().padStart(2, '0')} (motionScore: ${motionScore.toFixed(3)})`);
+        
         currentMusicMotion = smoothedMotion;
         musicMotionChangeTime = currentTime;
         motionFrameStartTime = currentTime; // 새 모션 프레임 사이클 시작
