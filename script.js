@@ -1642,9 +1642,9 @@ let musicMotionFrames = [null, null, null]; // 3개의 모션 프레임 데이�
 let musicBodyColors = ['#000000', '#000000', '#000000']; // 각 모션별 Body 색상
 // 각 모션별 Scarf 컬러스킴 (3개 컬러)
 let musicScarfColorSchemes = [
-    ['#E00000', '#C10000', '#9B0000'], // 모션 1
+    ['#E2D8BC', '#579355', '#2F5E1F'], // 모션 1 (원래 모션 3)
     ['#E2D8BC', '#C10000', '#2F5E1F'], // 모션 2
-    ['#E2D8BC', '#579355', '#2F5E1F']  // 모션 3
+    ['#E00000', '#C10000', '#9B0000']  // 모션 3 (원래 모션 1)
 ];
 let musicIsPlaying = false;
 let musicAnimationFrame = null;
@@ -1652,6 +1652,9 @@ let musicShowGrid = true; // Music Motion 탭의 그리드 표시 여부
 let musicRecorder = null;
 let musicRecordedChunks = [];
 let musicIsRecording = false;
+let motionPreviewInterval = null; // 모션 프리뷰 애니메이션 interval
+let currentPreviewMotion = -1; // 현재 프리뷰 중인 모션 (-1: 없음)
+let previewMotionFrame = 0; // 현재 프리뷰 프레임 인덱스
 
 // Web Audio API 관련
 let musicAudioContext = null;
@@ -1665,6 +1668,9 @@ let currentMusicMotion = 1; // 현재 선택된 모션 (0, 1, 2)
 let musicMotionSmoothing = 1; // 모션 스무딩 값 (0-2)
 let musicMotionChangeTime = 0; // 모션이 마지막으로 바뀐 시간
 const MIN_MOTION_DURATION = 0.5; // 모션 최소 지속 시간 (초)
+let currentMotionFrameIndex = 0; // 현재 모션의 프레임 인덱스 (0-5)
+let motionFrameStartTime = 0; // 현재 모션 프레임 사이클 시작 시간
+const MOTION_FRAME_DURATION = 1.0 / 6; // 각 프레임 지속 시간 (초) - 6프레임을 1초에 완료
 let isDraggingProgressBar = false; // 재생바 드래그 중 여부
 
 if (musicCanvas && musicCtx) {
@@ -1675,9 +1681,9 @@ if (musicCanvas && musicCtx) {
 // 기본 모션 파일들 로드
 async function loadDefaultMotions() {
     const motionFiles = [
-        { index: 0, path: 'motions/motion1.json', name: 'Walking3.json' },
+        { index: 0, path: 'motions/motion1.json', name: 'Walking1.json' },
         { index: 1, path: 'motions/motion2.json', name: 'Walking2.json' },
-        { index: 2, path: 'motions/motion3.json', name: 'Walking1.json' }
+        { index: 2, path: 'motions/motion3.json', name: 'Walking3.json' }
     ];
     
     for (const motionFile of motionFiles) {
@@ -1835,6 +1841,15 @@ function initMusicMotionTab() {
         }
     });
     
+    // 각 모션별 프리뷰 재생 버튼
+    const motionPreviewBtns = document.querySelectorAll('.motion-preview-btn');
+    motionPreviewBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const motionIndex = parseInt(btn.dataset.motion);
+            previewMotion(motionIndex, btn);
+        });
+    });
+    
     // 재생 버튼
     const musicPlayBtn = document.getElementById('musicPlayBtn');
     if (musicPlayBtn) {
@@ -1860,7 +1875,10 @@ function initMusicMotionTab() {
                 musicMotionAudio.play().then(() => {
                     musicIsPlaying = true;
                     musicPlayBtn.textContent = '⏸';
-                    musicMotionChangeTime = musicMotionAudio.currentTime; // 재생 시작 시간으로 초기화
+                    const startTime = musicMotionAudio.currentTime;
+                    musicMotionChangeTime = startTime; // 재생 시작 시간으로 초기화
+                    motionFrameStartTime = startTime; // 프레임 사이클 시작 시간 초기화
+                    currentMotionFrameIndex = 0; // 프레임 인덱스 초기화
                     startMusicAnimation();
                 }).catch(error => {
                     console.error('재생 오류:', error);
@@ -1900,6 +1918,8 @@ function initMusicMotionTab() {
                 const seekTime = parseFloat(musicProgressBar.value);
                 musicMotionAudio.currentTime = seekTime;
                 musicMotionChangeTime = seekTime; // 모션 변경 시간도 업데이트
+                motionFrameStartTime = seekTime; // 프레임 사이클 시작 시간 초기화
+                currentMotionFrameIndex = 0; // 프레임 인덱스 초기화
             }
             isDraggingProgressBar = false;
         });
@@ -1914,6 +1934,8 @@ function initMusicMotionTab() {
                 const seekTime = parseFloat(musicProgressBar.value);
                 musicMotionAudio.currentTime = seekTime;
                 musicMotionChangeTime = seekTime;
+                motionFrameStartTime = seekTime; // 프레임 사이클 시작 시간 초기화
+                currentMotionFrameIndex = 0; // 프레임 인덱스 초기화
             }
             isDraggingProgressBar = false;
         });
@@ -2018,10 +2040,15 @@ function initMusicMotionTab() {
     drawMusicCanvas();
 }
 
-// 음악 분석하여 모션 선택 (0: 느림, 1: 중간, 2: 빠름)
-function analyzeMusicMotion() {
+// 음악 분석하여 모션 선택 (주파수 분석 → 음악의 밝기/에너지 → 걸음 속도)
+function analyzeMusicMotion(allowMotionChange = false) {
     if (!musicAnalyser || !musicFrequencyData || !musicMotionAudio) {
         return currentMusicMotion; // 기본값: 현재 모션 유지
+    }
+    
+    // 6프레임 사이클이 완료되지 않았으면 모션 변경 불가
+    if (!allowMotionChange) {
+        return currentMusicMotion; // 현재 모션 유지
     }
     
     // 주파수 데이터 가져오기
@@ -2047,13 +2074,13 @@ function analyzeMusicMotion() {
         trebleEnergy += musicFrequencyData[i];
     }
     
-    // 전체 에너지
+    // 전체 에너지 (음악의 밝기/에너지)
     const totalEnergy = bassEnergy + midEnergy + trebleEnergy;
     
     // 평활화 (부드러운 전환을 위해)
-    musicSmoothedEnergy = musicSmoothedEnergy * 0.85 + totalEnergy * 0.15; // 더 부드럽게
+    musicSmoothedEnergy = musicSmoothedEnergy * 0.85 + totalEnergy * 0.15;
     
-    // 트레블/베이스 비율 (높을수록 경쾌하고 빠름)
+    // 트레블/베이스 비율 (저·고음 비율, 높을수록 경쾌하고 빠름)
     const trebleRatio = trebleEnergy / (bassEnergy + 1); // +1로 0으로 나누는 것 방지
     
     // 에너지와 트레블 비율을 결합하여 모션 선택
@@ -2061,41 +2088,109 @@ function analyzeMusicMotion() {
     // 모션 2 (중간): 중간 에너지
     // 모션 1 (느림): 낮은 에너지 + 낮은 트레블 비율
     
-    const normalizedEnergy = Math.min(musicSmoothedEnergy / 5000, 1); // 에너지 정규화 (최대값은 조정 가능)
-    const normalizedTreble = Math.min(trebleRatio / 2, 1); // 트레블 비율 정규화
+    const normalizedEnergy = Math.min(musicSmoothedEnergy / 3500, 1); // 에너지 정규화
+    const normalizedTreble = Math.min(trebleRatio / 1.2, 1); // 트레블 비율 정규화
     
-    // 가중 평균으로 모션 결정 (0-2)
-    const motionScore = normalizedEnergy * 0.6 + normalizedTreble * 0.4;
+    // 가중 평균으로 모션 결정 (0-2) - 트레블 비율에 더 많은 가중치
+    const motionScore = normalizedEnergy * 0.45 + normalizedTreble * 0.55;
     
-    // 새 모션 계산
+    // 새 모션 계산 (걸음 속도 결정)
     let newMotion;
-    if (motionScore < 0.33) {
-        newMotion = 0; // 모션 1 (느림)
-    } else if (motionScore < 0.66) {
-        newMotion = 1; // 모션 2 (중간)
+    if (motionScore < 0.35) {
+        newMotion = 0; // 모션 1 (느림) - 낮은 에너지 + 낮은 트레블 비율
+    } else if (motionScore < 0.6) {
+        newMotion = 1; // 모션 2 (중간) - 중간 에너지
     } else {
-        newMotion = 2; // 모션 3 (빠름)
+        newMotion = 2; // 모션 3 (빠름) - 높은 에너지 + 높은 트레블 비율
     }
     
-    // 모션 스무딩 적용 (현재 모션과 새 모션의 가중 평균)
-    musicMotionSmoothing = musicMotionSmoothing * 0.92 + newMotion * 0.08;
+    // 모션 스무딩 적용 (더 빠르게 반응하도록 조정)
+    musicMotionSmoothing = musicMotionSmoothing * 0.7 + newMotion * 0.3;
     
-    // 최소 지속 시간 체크
-    const currentTime = musicMotionAudio.currentTime;
-    const timeSinceChange = currentTime - musicMotionChangeTime;
-    
-    // 모션이 바뀌려면 최소 지속 시간이 지나야 하고, 스무딩 값이 충분히 차이 나야 함
+    // 6프레임 사이클이 완료된 후에만 모션 변경 허용
     const smoothedMotion = Math.round(musicMotionSmoothing);
-    if (smoothedMotion !== currentMusicMotion && timeSinceChange >= MIN_MOTION_DURATION) {
-        // 히스테리시스 적용: 현재 모션과 차이가 충분히 클 때만 변경
-        const motionDiff = Math.abs(smoothedMotion - currentMusicMotion);
-        if (motionDiff >= 1) { // 최소 1단계 차이 필요
-            currentMusicMotion = smoothedMotion;
-            musicMotionChangeTime = currentTime;
-        }
+    if (smoothedMotion !== currentMusicMotion) {
+        // 모션 변경 - 더 쉽게 변경되도록 임계값 제거
+        const currentTime = musicMotionAudio.currentTime;
+        currentMusicMotion = smoothedMotion;
+        musicMotionChangeTime = currentTime;
+        motionFrameStartTime = currentTime; // 새 모션 프레임 사이클 시작
+        currentMotionFrameIndex = 0; // 프레임 인덱스 리셋
     }
     
     return currentMusicMotion;
+}
+
+// 모션 프리뷰 재생 함수
+function previewMotion(motionIndex, button) {
+    if (!musicMotionFrames[motionIndex] || !musicMotionFrames[motionIndex][0]) {
+        alert('모션 데이터가 없습니다.');
+        return;
+    }
+    
+    // 이미 같은 모션이 재생 중이면 정지
+    if (currentPreviewMotion === motionIndex && motionPreviewInterval) {
+        stopMotionPreview(button);
+        return;
+    }
+    
+    // 음악 재생 중이면 정지
+    if (musicIsPlaying && musicMotionAudio) {
+        musicMotionAudio.pause();
+        musicIsPlaying = false;
+        const musicPlayBtn = document.getElementById('musicPlayBtn');
+        if (musicPlayBtn) {
+            musicPlayBtn.textContent = '▶';
+        }
+        if (musicAnimationFrame) {
+            cancelAnimationFrame(musicAnimationFrame);
+            musicAnimationFrame = null;
+        }
+    }
+    
+    // 다른 모션이 재생 중이면 정지
+    if (currentPreviewMotion !== -1 && motionPreviewInterval) {
+        stopMotionPreview();
+    }
+    
+    // 모션 프리뷰 시작
+    currentPreviewMotion = motionIndex;
+    previewMotionFrame = 0;
+    button.textContent = '정지';
+    
+    // 애니메이션 시작
+    motionPreviewInterval = setInterval(() => {
+        if (musicMotionFrames[motionIndex] && musicMotionFrames[motionIndex][previewMotionFrame]) {
+            drawMusicCanvas();
+            previewMotionFrame = (previewMotionFrame + 1) % 6;
+        }
+    }, 200); // 200ms마다 프레임 변경
+    
+    // 즉시 첫 프레임 그리기
+    drawMusicCanvas();
+}
+
+// 모션 프리뷰 정지 함수
+function stopMotionPreview(button = null) {
+    if (motionPreviewInterval) {
+        clearInterval(motionPreviewInterval);
+        motionPreviewInterval = null;
+    }
+    currentPreviewMotion = -1;
+    previewMotionFrame = 0;
+    
+    // 버튼 텍스트 복원
+    if (button) {
+        button.textContent = '재생';
+    } else {
+        // 모든 버튼 텍스트 복원
+        document.querySelectorAll('.motion-preview-btn').forEach(btn => {
+            btn.textContent = '재생';
+        });
+    }
+    
+    // 정지 상태로 캔버스 그리기
+    drawMusicCanvas();
 }
 
 // Music Canvas 그리기
@@ -2106,14 +2201,42 @@ function drawMusicCanvas() {
     musicCtx.fillStyle = '#ffffff';
     musicCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
     
+    // 모션 프리뷰 중이면 프리뷰 모션 표시
+    if (currentPreviewMotion !== -1 && musicMotionFrames[currentPreviewMotion]) {
+        const frameIndex = previewMotionFrame;
+        if (musicMotionFrames[currentPreviewMotion][frameIndex]) {
+            drawMusicFrame(musicMotionFrames[currentPreviewMotion][frameIndex], currentPreviewMotion);
+        }
+        drawMusicGrid();
+        return;
+    }
+    
     // 현재 재생 중인 모션에 따라 프레임 그리기
     if (musicIsPlaying && musicMotionAudio && musicAnalyser) {
-        // 음악 분석으로 모션 선택
-        const motionIndex = analyzeMusicMotion();
+        // 현재 모션의 프레임 인덱스 계산 (시간 기반)
+        const currentTime = musicMotionAudio.currentTime;
+        const timeSinceFrameStart = currentTime - motionFrameStartTime;
+        const frameProgress = timeSinceFrameStart / MOTION_FRAME_DURATION;
         
-        // 각 모션 내에서 프레임 선택 (시간 기반)
-        const timeProgress = (musicMotionAudio.currentTime % 1); // 1초 단위
-        const frameIndex = Math.min(Math.floor(timeProgress * 6), 5); // 각 모션은 6프레임
+        // 6프레임 사이클이 완료되었는지 확인
+        const frameCycleDuration = MOTION_FRAME_DURATION * 6;
+        const cycleCompleted = frameProgress >= 6;
+        
+        // 프레임 인덱스 계산 (사이클 완료 전에 계산)
+        let frameIndex = Math.min(Math.floor(frameProgress), 5);
+        
+        // 사이클이 완료되면 모션 변경 허용 및 새 사이클 시작
+        if (cycleCompleted) {
+            analyzeMusicMotion(true); // 모션 변경 허용
+            motionFrameStartTime = currentTime; // 새 사이클 시작
+            frameIndex = 0; // 새 사이클 시작이므로 프레임 인덱스는 0
+            currentMotionFrameIndex = 0;
+        } else {
+            currentMotionFrameIndex = frameIndex;
+        }
+        
+        // 현재 모션 인덱스 (변경 불가 상태에서 가져오기)
+        const motionIndex = analyzeMusicMotion(false);
         
         if (musicMotionFrames[motionIndex] && musicMotionFrames[motionIndex][frameIndex]) {
             drawMusicFrame(musicMotionFrames[motionIndex][frameIndex], motionIndex);
@@ -2148,14 +2271,14 @@ function calculateScarfColor(row, col, motionIndex = 0) {
         sum += normalized * normalized;
     }
     const rms = Math.sqrt(sum / musicTimeData.length); // RMS 값
-    const volume = Math.min(rms * 1.5, 1); // 0-1 범위로 정규화 (민감도 조정)
+    const volume = Math.min(rms * 1.8, 1); // 0-1 범위로 정규화 (민감도 증가)
     
-    // 평활화된 볼륨 - 컬러 변화용 (깜박임 방지를 위해 스무딩 계수를 매우 높임)
-    musicScarfEnergy = musicScarfEnergy * 0.92 + volume * 0.08;
+    // 평활화된 볼륨 - 컬러 변화용
+    musicScarfEnergy = musicScarfEnergy * 0.88 + volume * 0.12; // 스무딩 완화하여 더 빠른 반응
     
     // 볼륨에 따른 컬러 인덱스 오프셋 (0 ~ colorScheme.length - 1)
-    // 추가 스무딩을 위해 반올림 대신 더 부드러운 전환
-    const colorOffset = Math.floor(musicScarfEnergy * (colorScheme.length - 1));
+    // 더 균등하게 분포되도록 조정
+    const colorOffset = Math.min(Math.floor(musicScarfEnergy * colorScheme.length), colorScheme.length - 1);
     
     // 중앙 좌표 계산
     const centerRow = Math.floor(GRID_SIZE / 2);
@@ -2263,6 +2386,12 @@ function startMusicAnimation() {
             const minutes = Math.floor(currentTime / 60);
             const seconds = Math.floor(currentTime % 60);
             musicTimeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // 모션 표시 업데이트
+        const musicMotionDisplay = document.getElementById('musicMotionDisplay');
+        if (musicMotionDisplay) {
+            musicMotionDisplay.textContent = `모션 ${currentMusicMotion + 1}`;
         }
         
         // 재생바 업데이트 (드래그 중이 아닐 때만)

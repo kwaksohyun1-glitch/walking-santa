@@ -116,21 +116,27 @@
                     <h3>걸어가는 프레임 모션</h3>
                     <div id="walkingMotionInputs">
                         <div class="motion-input-item" style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">모션 1:</label>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <label style="color: #e0e0e0; font-size: 13px; margin: 0;">모션 1:</label>
+                                <button class="btn motion-preview-btn" data-motion="0" style="padding: 4px 12px; font-size: 11px;">재생</button>
+                            </div>
                             <div class="motion-file-name" data-motion="0" style="color: #999; font-size: 12px; margin-top: 4px;"></div>
                             <div style="margin-top: 8px;">
                                 <label for="motion0BodyColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Body 색상:</label>
                                 <input type="color" id="motion0BodyColor" data-motion="0" data-type="body" value="#000000" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a; margin-bottom: 8px;">
                                 <label style="display: block; margin-bottom: 4px; margin-top: 8px; color: #e0e0e0; font-size: 12px;">Bauble 컬러스킴:</label>
                                 <div style="display: flex; gap: 8px;">
-                                    <input type="color" id="motion0ScarfColorScheme0" data-motion="0" data-color-index="0" value="#E00000" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
-                                    <input type="color" id="motion0ScarfColorScheme1" data-motion="0" data-color-index="1" value="#C10000" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
-                                    <input type="color" id="motion0ScarfColorScheme2" data-motion="0" data-color-index="2" value="#9B0000" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                                    <input type="color" id="motion0ScarfColorScheme0" data-motion="0" data-color-index="0" value="#E2D8BC" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                                    <input type="color" id="motion0ScarfColorScheme1" data-motion="0" data-color-index="1" value="#579355" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                                    <input type="color" id="motion0ScarfColorScheme2" data-motion="0" data-color-index="2" value="#2F5E1F" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
                                 </div>
                             </div>
                         </div>
                         <div class="motion-input-item" style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">모션 2:</label>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <label style="color: #e0e0e0; font-size: 13px; margin: 0;">모션 2:</label>
+                                <button class="btn motion-preview-btn" data-motion="1" style="padding: 4px 12px; font-size: 11px;">재생</button>
+                            </div>
                             <div class="motion-file-name" data-motion="1" style="color: #999; font-size: 12px; margin-top: 4px;"></div>
                             <div style="margin-top: 8px;">
                                 <label for="motion1BodyColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Body 색상:</label>
@@ -144,16 +150,19 @@
                             </div>
                         </div>
                         <div class="motion-input-item" style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 8px; color: #e0e0e0; font-size: 13px;">모션 3:</label>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <label style="color: #e0e0e0; font-size: 13px; margin: 0;">모션 3:</label>
+                                <button class="btn motion-preview-btn" data-motion="2" style="padding: 4px 12px; font-size: 11px;">재생</button>
+                            </div>
                             <div class="motion-file-name" data-motion="2" style="color: #999; font-size: 12px; margin-top: 4px;"></div>
                             <div style="margin-top: 8px;">
                                 <label for="motion2BodyColor" style="display: block; margin-bottom: 4px; color: #e0e0e0; font-size: 12px;">Body 색상:</label>
                                 <input type="color" id="motion2BodyColor" data-motion="2" data-type="body" value="#000000" style="width: 100%; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a; margin-bottom: 8px;">
                                 <label style="display: block; margin-bottom: 4px; margin-top: 8px; color: #e0e0e0; font-size: 12px;">Bauble 컬러스킴:</label>
                                 <div style="display: flex; gap: 8px;">
-                                    <input type="color" id="motion2ScarfColorScheme0" data-motion="2" data-color-index="0" value="#E2D8BC" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
-                                    <input type="color" id="motion2ScarfColorScheme1" data-motion="2" data-color-index="1" value="#579355" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
-                                    <input type="color" id="motion2ScarfColorScheme2" data-motion="2" data-color-index="2" value="#2F5E1F" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                                    <input type="color" id="motion2ScarfColorScheme0" data-motion="2" data-color-index="0" value="#E00000" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                                    <input type="color" id="motion2ScarfColorScheme1" data-motion="2" data-color-index="1" value="#C10000" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
+                                    <input type="color" id="motion2ScarfColorScheme2" data-motion="2" data-color-index="2" value="#9B0000" style="flex: 1; height: 32px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background-color: #3a3a3a;">
                                 </div>
                             </div>
                         </div>
@@ -166,6 +175,7 @@
                     <div class="play-control">
                         <button id="musicPlayBtn" class="play-button">▶</button>
                         <span class="time-display" id="musicTimeDisplay">정지</span>
+                        <span class="motion-display" id="musicMotionDisplay" style="margin-left: auto; color: #ccc; font-size: 13px;">-</span>
                     </div>
                     <div class="progress-control" style="margin-top: 12px;">
                         <input type="range" id="musicProgressBar" min="0" max="100" value="0" step="0.1" style="width: 100%; cursor: pointer;">
